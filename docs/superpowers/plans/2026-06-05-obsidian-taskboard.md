@@ -4,6 +4,8 @@
 
 **Goal:** An Obsidian plugin that renders a kanban board over markdown `- [ ]` tasks discovered across the vault, where dragging a card rewrites the source task line in place.
 
+> **Known v1 limitation (deferred from final review):** `TaskMutator.mutateLine`'s identity guard compares `task.body` against the freshly-reparsed line. If two rapid edits target the same task before the index refreshes, the second edit holds a stale `Task` and is silently dropped (no data corruption — the first write succeeds, the second no-ops). Acceptable for v1; a proper fix surfaces the no-op so the UI can revert/retry.
+
 **Architecture:** Five units with one job each — Settings (config), TaskParser (pure parse/serialize), TaskIndex (in-memory index + vault events), TaskMutator (the only disk writer), BoardView (Preact UI in an Obsidian ItemView). File is the source of truth; the plugin writes the file then re-renders from the index. Status is derived per-board from a task's tags and the board's column definitions.
 
 **Tech Stack:** TypeScript (strict), esbuild, Preact (via `preact/compat`), `@hello-pangea/dnd`, vitest, Obsidian plugin API.
