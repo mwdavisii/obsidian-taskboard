@@ -17,17 +17,31 @@ describe("boardFrontmatter", () => {
     expect(fm.trimEnd().endsWith("---")).toBe(true);
   });
 
-  it("serializes a null tag as null and a string tag quoted", () => {
+  it("serializes a null tag as a bare string and a string tag as Name:#tag", () => {
     const fm = boardFrontmatter(columns, "daily_note");
-    expect(fm).toContain('- { name: "Backlog", tag: null }');
-    expect(fm).toContain('- { name: "Todo", tag: "#todo" }');
+    expect(fm).toContain('- "Backlog"');
+    expect(fm).toContain('- "Todo:#todo"');
   });
 
   it("round-trips through parseBoardConfig-compatible YAML shape", () => {
-    // The emitted columns block must be flow-style entries the parser accepts.
     const fm = boardFrontmatter([{ name: "Doing", tag: "#doing" }], "Inbox.md");
-    expect(fm).toContain('- { name: "Doing", tag: "#doing" }');
+    expect(fm).toContain('- "Doing:#doing"');
     expect(fm).toContain("new_task_destination: Inbox.md");
+  });
+
+  it("produces columns that parseBoardConfig reads back identically", async () => {
+    const { parseBoardConfig } = await import("./boardConfig");
+    const fm = boardFrontmatter(columns, "daily_note");
+    // Simulate Obsidian's YAML parse of just the columns list (strings).
+    const parsedColumns = columns.map((c) =>
+      c.tag === null ? c.name : `${c.name}:${c.tag}`
+    );
+    const cfg = parseBoardConfig(
+      { taskboard: true, columns: parsedColumns, new_task_destination: "daily_note" },
+      []
+    );
+    expect(cfg.columns).toEqual(columns);
+    expect(fm).toContain("taskboard: true");
   });
 });
 

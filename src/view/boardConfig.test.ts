@@ -57,4 +57,36 @@ describe("parseBoardConfig", () => {
     );
     expect(cfg.newTaskDestination).toBe("Inbox.md");
   });
+
+  it("reads columns from the string form Name:#tag", () => {
+    const cfg = parseBoardConfig(
+      {
+        taskboard: true,
+        columns: ["Backlog", "Todo:#todo", "Doing:#doing", "Done:#done"],
+      },
+      defaultColumns
+    );
+    expect(cfg.columns).toEqual([
+      { name: "Backlog", tag: null },
+      { name: "Todo", tag: "#todo" },
+      { name: "Doing", tag: "#doing" },
+      { name: "Done", tag: "#done" },
+    ]);
+  });
+
+  it("treats a string with no #tag as a null-tag column", () => {
+    const cfg = parseBoardConfig(
+      { taskboard: true, columns: ["Backlog"] },
+      defaultColumns
+    );
+    expect(cfg.columns[0]).toEqual({ name: "Backlog", tag: null });
+  });
+
+  it("does not split a colon that is not followed by a #tag", () => {
+    const cfg = parseBoardConfig(
+      { taskboard: true, columns: ["Q3: Planning"] },
+      defaultColumns
+    );
+    expect(cfg.columns[0]).toEqual({ name: "Q3: Planning", tag: null });
+  });
 });

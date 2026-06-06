@@ -8,6 +8,18 @@ export function isBoardFrontmatter(fm: Frontmatter): boolean {
 }
 
 function normalizeColumn(raw: unknown): Column | null {
+  // String form: "Name" (null tag) or "Name:#tag" — the Obsidian-Properties-friendly format.
+  if (typeof raw === "string") {
+    const idx = raw.indexOf(":");
+    if (idx !== -1) {
+      const name = raw.slice(0, idx).trim();
+      const rest = raw.slice(idx + 1).trim();
+      if (name && rest.startsWith("#")) return { name, tag: rest };
+    }
+    const name = raw.trim();
+    return name ? { name, tag: null } : null;
+  }
+  // Object form: { name, tag } — back-compat for hand-written boards.
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
   const name = typeof obj.name === "string" ? obj.name : null;
