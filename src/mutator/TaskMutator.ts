@@ -10,6 +10,14 @@ import { serializeTask } from "../parser/serializeTask";
  *
  * Returns the intended new Task so the view can render optimistically; the
  * subsequent vault modify event will reconcile via the index.
+ *
+ * Caveat: the identity guard compares only `body`, so two tasks in the same
+ * file with identical body text are indistinguishable (the known id-collision
+ * case) — the guard may match the wrong one if the file changed between read
+ * and write.
+ *
+ * Caveat: `vault.process` rejections (disk/permission errors) propagate to
+ * the caller; callers are responsible for catching them.
  */
 export class TaskMutator {
   constructor(
@@ -59,6 +67,7 @@ export class TaskMutator {
 
       let checked = parsed.checked;
       if (isDoneColumn && this.checkBoxOnDone) checked = true;
+      // Intentionally unchecks on any non-Done column move, per spec.
       else if (!isDoneColumn && parsed.checked) checked = false;
 
       return { ...parsed, tags: nextTags, checked };
