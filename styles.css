@@ -1,0 +1,79 @@
+.tb-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  height: 100%;
+  padding: 8px;
+}
+.tb-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  max-width: 260px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  padding: 8px;
+}
+.tb-column-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.tb-column-count {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.tb-add-btn {
+  margin-left: auto;
+  cursor: pointer;
+}
+.tb-column-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 40px;
+}
+.tb-card {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.tb-card-body {
+  cursor: text;
+  white-space: pre-wrap;
+}
+.tb-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.8em;
+}
+.tb-chip {
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--background-modifier-border);
+  cursor: pointer;
+}
+.tb-due-overdue {
+  background: var(--color-red);
+  color: white;
+}
+.tb-due-today {
+  background: var(--color-orange);
+  color: white;
+}
+.tb-source-link {
+  color: var(--text-accent);
+  cursor: pointer;
+  margin-left: auto;
+}
+.tb-empty {
+  color: var(--text-faint);
+  font-size: 0.85em;
+  text-align: center;
+  padding: 12px 0;
+}
