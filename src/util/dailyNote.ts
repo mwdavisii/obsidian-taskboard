@@ -5,7 +5,9 @@ function formatDate(format: string, date: Date): string {
   const yyyy = String(date.getFullYear());
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const dd = String(date.getDate()).padStart(2, "0");
-  return format.replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
+  return format.replace(/YYYY|MM|DD/g, (token) =>
+    token === "YYYY" ? yyyy : token === "MM" ? mm : dd
+  );
 }
 
 /** Build the vault-relative path of the daily note for a given date. */

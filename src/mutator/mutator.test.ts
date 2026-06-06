@@ -103,6 +103,18 @@ describe("TaskMutator.setStatus", () => {
     await m.setStatus(task, columns[3]); // Done
     expect(vault.files["a.md"]).toMatch(/- \[x\].*<!-- mid:ABC= -->/);
   });
+
+  it("checks the box for a renamed Done column carrying the #done tag", async () => {
+    const customColumns: Column[] = [
+      { name: "Backlog", tag: null },
+      { name: "Completed", tag: "#done" },
+    ];
+    const vault = fakeVault({ "a.md": "- [ ] Triage" });
+    const m = new TaskMutator(vault as any, customColumns, true);
+    const task = firstTask(vault.files["a.md"], "a.md");
+    await m.setStatus(task, customColumns[1]); // Completed (#done)
+    expect(vault.files["a.md"]).toBe("- [x] Triage #done");
+  });
 });
 
 describe("TaskMutator field edits", () => {

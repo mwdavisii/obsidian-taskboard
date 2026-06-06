@@ -21,4 +21,8 @@ describe("dailyNotePath", () => {
       "Journal/2026-06-05.md"
     );
   });
+
+  it("handles compact YYYYMMDD format", () => {
+    expect(dailyNotePath("J", "YYYYMMDD", date)).toBe("J/20260605.md");
+  });
 });

@@ -18,9 +18,10 @@ export function useTaskIndex(index: TaskIndex): Task[] {
         setTasks(index.allTasks());
       }, 50);
     };
-    index.on(refresh);
+    const unsub = index.on(refresh);
     refresh();
     return () => {
+      unsub();
       if (timer !== null) window.clearTimeout(timer);
     };
   }, [index]);

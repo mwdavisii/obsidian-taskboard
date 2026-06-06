@@ -59,7 +59,11 @@ export class TaskMutator {
 
   async setStatus(task: Task, column: Column): Promise<Task | null> {
     const statusTags = this.statusTags();
-    const isDoneColumn = column.name.toLowerCase() === "done";
+    // A column counts as "Done" if named "done" (any case) OR carrying the #done tag,
+    // so boards that rename the terminal column (e.g. "Completed" with tag #done)
+    // still flip the checkbox — which the cleanup.sh archive sweep depends on.
+    const isDoneColumn =
+      column.name.toLowerCase() === "done" || column.tag === "#done";
     return this.mutateLine(task, (parsed) => {
       // Remove every board status tag, then add the target column's tag.
       const kept = parsed.tags.filter((t) => !statusTags.includes(t));

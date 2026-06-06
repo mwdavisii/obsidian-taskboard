@@ -54,7 +54,7 @@ export class BoardView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
-    this.renderBoard();
+    if (this.boardFilePath) this.renderBoard();
   }
 
   async onClose(): Promise<void> {
@@ -71,6 +71,8 @@ export class BoardView extends ItemView {
   }
 
   private renderBoard(): void {
+    // Unmount any existing Preact tree so its effects (listener cleanup) run.
+    render(null, this.contentEl);
     const container = this.contentEl;
     container.empty();
 

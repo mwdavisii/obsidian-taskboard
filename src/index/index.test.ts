@@ -80,3 +80,19 @@ describe("TaskIndex.onDelete / onRename", () => {
     expect(idx.allTasks()[0].filePath).toBe("b.md");
   });
 });
+
+describe("TaskIndex.on unsubscribe", () => {
+  it("stops notifying after unsubscribe", async () => {
+    const vault = fakeVault({ "a.md": "- [ ] One" });
+    const idx = new TaskIndex(vault as any, settings);
+    await idx.scan();
+    let calls = 0;
+    const unsub = idx.on(() => calls++);
+    vault.files["a.md"] = "- [ ] One\n- [ ] Two";
+    await idx.onModify({ path: "a.md" } as any);
+    expect(calls).toBe(1);
+    unsub();
+    await idx.onModify({ path: "a.md" } as any);
+    expect(calls).toBe(1); // no further calls after unsubscribe
+  });
+});

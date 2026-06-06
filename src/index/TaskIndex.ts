@@ -23,8 +23,11 @@ export class TaskIndex {
     private settings: ExclusionSettings
   ) {}
 
-  on(listener: Listener): void {
+  on(listener: Listener): () => void {
     this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
   }
 
   private emit(event: IndexEvent): void {
