@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-taskboard",
+  "name": "Taskboard",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Kanban board sourced from markdown - [ ] tasks across your vault.",
+  "author": "mwdavisii",
+  "isDesktopOnly": false
+}
