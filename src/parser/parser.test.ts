@@ -172,3 +172,44 @@ describe("round-trip", () => {
     });
   }
 });
+
+
+describe("cleanup.sh interop", () => {
+  const F = "00_DailyNotes/2026/06/06-05-2026.md";
+
+  const MID =
+    "AAMkADA5YTJiZmRhLWU5YTgtNDQ1Yi05ZGRiLTc0ZjU1MTA4NzcxMwBGAAAAAAH5KJT5AAA=";
+  const URL =
+    "https://outlook.office365.com/owa/?ItemID=AAMkADA5YTJiZmRhAAH5KJT5AAA%3D&exvsurl=1&viewmodel=ReadMessageItem";
+
+  // The two regexes cleanup.sh uses (Task 4 of cleanup.sh).
+  const MID_RE = /- \[x\].*<!-- mid:(\S+) -->/;
+  const LINK_RE =
+    /- \[x\].*\(https:\/\/outlook\.office365\.com\/owa\/\?ItemID=([^&]+)&/;
+
+  it("a checked task with a mid comment matches cleanup's MID regex", () => {
+    const line = `- [ ] Reply to Katie [(open)](${URL}) <!-- mid:${MID} -->`;
+    const t = parseLine(line, F, 0)!;
+    const done = { ...t, checked: true, tags: ["#done"] };
+    const out = serializeTask(done);
+    expect(MID_RE.test(out)).toBe(true);
+    expect(MID_RE.exec(out)![1]).toBe(MID);
+  });
+
+  it("a legacy link-only checked task matches cleanup's LINK regex", () => {
+    const line = `- [ ] Reply to AWS [(open)](${URL})`;
+    const t = parseLine(line, F, 0)!;
+    const done = { ...t, checked: true, tags: ["#done"] };
+    const out = serializeTask(done);
+    expect(LINK_RE.test(out)).toBe(true);
+  });
+
+  it("does not corrupt the outlook url query string", () => {
+    const line = `- [ ] Reply [(open)](${URL}) <!-- mid:${MID} -->`;
+    const t = parseLine(line, F, 0)!;
+    const out = serializeTask({ ...t, checked: true, tags: ["#done"] });
+    expect(out).toContain("ItemID=");
+    expect(out).toContain("&exvsurl=1");
+    expect(out).toContain(`<!-- mid:${MID} -->`);
+  });
+});
