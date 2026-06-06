@@ -1,4 +1,12 @@
-import { Plugin, TFile, WorkspaceLeaf, debounce, Notice, normalizePath } from "obsidian";
+import {
+  Plugin,
+  TFile,
+  TFolder,
+  WorkspaceLeaf,
+  debounce,
+  Notice,
+  normalizePath,
+} from "obsidian";
 import { Settings, DEFAULT_SETTINGS, TaskboardSettingTab } from "./settings";
 import { TaskIndex } from "./index/TaskIndex";
 import { BoardView, TASKBOARD_VIEW_TYPE } from "./view/BoardView";
@@ -26,6 +34,7 @@ export default class TaskboardPlugin extends Plugin {
 
     this.registerVaultEvents();
     this.registerCommands();
+    this.registerFolderMenu();
 
     this.addRibbonIcon("kanban-square", "Open taskboard", () => {
       void this.openBoardForActiveFile();
@@ -86,8 +95,31 @@ export default class TaskboardPlugin extends Plugin {
     });
   }
 
-  private async createNewBoard(): Promise<void> {
-    const folder = this.settings.boardsFolder.replace(/\/+$/, "");
+  /** Add a "New taskboard" entry to the file-explorer folder context menu. */
+  private registerFolderMenu(): void {
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu, file) => {
+        if (!(file instanceof TFolder)) return;
+        menu.addItem((item) =>
+          item
+            .setTitle("New taskboard")
+            .setIcon("kanban-square")
+            .onClick(() => void this.createNewBoard(file.path))
+        );
+      })
+    );
+  }
+
+  /**
+   * Create a new auto-named board note and open it. If `targetFolder` is given
+   * (e.g. the folder right-clicked in the explorer), the board is created there;
+   * otherwise it goes in the configured Boards folder.
+   */
+  private async createNewBoard(targetFolder?: string): Promise<void> {
+    const folder = (targetFolder ?? this.settings.boardsFolder).replace(
+      /\/+$/,
+      ""
+    );
     if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
       try {
         await this.app.vault.createFolder(folder);
