@@ -16,6 +16,7 @@ A "board" is a `.md` file with `taskboard: true` in frontmatter; opening it in t
 - Create new tasks from the board; they land in today's Daily Note.
 - Source-of-truth is markdown. Any external edit to the underlying file is reflected on the board.
 - Self-contained: no hard dependency on Tasks plugin, Dataview, or Daily Notes plugin (uses the latter when present; falls back otherwise).
+- **Preserve existing vault automation.** Lines must round-trip cleanly so the `~/code/productivity/config/scripts/cleanup.sh` archive sweep (which looks for `- [x] ... <!-- mid:... -->` and Outlook `ItemID=` URLs in daily notes) keeps working after the plugin edits a task. See Interop section.
 
 ## Non-goals (v1)
 
@@ -131,7 +132,7 @@ interface Settings {
 2. From a working copy of the body, extract and remove:
    - Due date: `📅\s+(\d{4}-\d{2}-\d{2})`
    - Priority: one of `⏫ 🔺 🔽 ⏬ 🔼`
-   - Tags: `#[\w\-/]+` — collected into `tags` and removed from the working copy.
+   - Tags: `(?<=\s|^)#[\w\-/]+` — collected into `tags` and removed from the working copy. **Whitespace prefix is required** so URL fragments like `https://example.com/page#section` are not falsely matched as tags (which would corrupt the line on round-trip).
 3. Whatever remains in the working copy → `body` (trimmed) plus `trailing` for any unrecognized fragments at the end (Tasks-plugin fields we don't surface). Heuristic: anything after the last recognized field that doesn't match a known shape goes into `trailing`.
 
 ### `serializeTask`
@@ -154,6 +155,16 @@ For any line `parseLine` accepts: `serialize(parse(line))` re-parses to the same
 ### Preserve-and-ignore (v1)
 
 Tasks-plugin fields not surfaced in v1 — 🛫 start, ⏳ scheduled, ➕ created, 🔁 recurrence, ✅ completion — are captured into `trailing` and emitted verbatim. They survive edits we make; we just don't expose them in card UI.
+
+### Body passthrough (explicit contract)
+
+Beyond the recognized fields above, **the body of a task is preserved verbatim** end-to-end through parse → serialize. In particular:
+
+- HTML comments inside the body (e.g. `<!-- mid:AAMk... -->`) — used by the productivity-vault cleanup pipeline to identify which email to archive — are not parsed, not modified, not reordered.
+- Markdown links inside the body (e.g. `[(open)](https://outlook.office365.com/...)`) are preserved verbatim, including the URL and any `#fragment`/query string.
+- Arbitrary inline-markdown formatting (bold, code, links) in the body is untouched.
+
+This is required for interop with `productivity/config/scripts/cleanup.sh` (see Interop section below). Tested explicitly via round-trip fixtures using real cleanup-script-targeted lines.
 
 ## Indexing & vault events
 
@@ -306,6 +317,52 @@ obsidian-taskboard/
   "isDesktopOnly": false
 }
 ```
+
+## Interop: productivity vault cleanup pipeline
+
+The user runs `~/code/productivity/config/scripts/cleanup.sh` daily (cron). Task 4 of that script ("Archive completed inbox actions") scans `00_DailyNotes/**/*.md` for **completed** task lines containing an Outlook message identifier, posts each ID to a Power Automate archive webhook, then strips the identifier from the line.
+
+The cleanup script recognizes two line shapes:
+
+```
+- [x] <body...> <!-- mid:<MESSAGE_ID> -->                          # canonical
+- [x] <body...> [(open)](https://outlook.office365.com/owa/?ItemID=<encoded>&...)   # legacy
+```
+
+When a user drags a card from a non-Done column to **Done**, `TaskMutator` must produce a line that the cleanup script still recognizes. Concretely, for an input line like:
+
+```
+- [ ] Reply to vendor — from Jane [(open)](https://outlook.office365.com/owa/?ItemID=AAMk...AAA%3D&exvsurl=1) <!-- mid:AAMk...AAA= -->
+```
+
+dragged to a Done column with `tag: "#done"`, the resulting line must still satisfy `cleanup.sh`'s regexes:
+
+```
+- [x] Reply to vendor — from Jane [(open)](https://outlook.office365.com/owa/?ItemID=AAMk...AAA%3D&exvsurl=1) <!-- mid:AAMk...AAA= --> #done
+```
+
+Order of `#done` versus `<!-- mid:... -->` does not matter to the cleanup script (its regex is `- \[x\].*<!-- mid:(\S+) -->`). Tag position relative to the trailing comment is left to the serializer.
+
+### Concrete requirements this places on the plugin
+
+1. **Parser must not eat HTML comments.** `<!-- mid:... -->` falls into `trailing` and round-trips unchanged.
+2. **Parser must not eat URLs or fragments.** The `(?<=\s|^)#` tag prefix rule (see Parsing section) prevents `?ItemID=...&exvsurl=1` URL contents from being interpreted as tags.
+3. **`TaskMutator.setStatus`** rewrites only the checkbox state and the status-tag portion of the tag list. Body text, markdown links inside body, and `trailing` are passed through verbatim.
+4. **Done transition** (`checkBoxOnDone: true`) flips `[ ]` → `[x]` so the cleanup script's `- \[x\]` regex matches.
+
+### What the plugin does NOT do
+
+- The plugin does not post to the archive webhook, does not strip `<!-- mid:... -->`, and does not delete task lines after archive. That's cleanup.sh's job.
+- The plugin does not touch lines outside its own write path. The cleanup script's strip step runs independently; the next vault `modify` event will re-parse those lines as ordinary `- [x]` tasks (now without the comment) and they'll keep working.
+- The plugin does not advance `state.json#last_archive_sweep`. That's the daily-sync pipeline's job.
+
+### Test coverage (added to parser test suite)
+
+Fixture lines lifted from real vault content:
+
+- `- [ ] ... [(open)](https://outlook.office365.com/owa/?ItemID=...) <!-- mid:... -->` → parse → setStatus to Done → serialize → must round-trip and must satisfy `re.compile(r'- \[x\].*<!-- mid:(\S+) -->')`.
+- Legacy-format line (link only, no mid comment) → same: must satisfy `re.compile(r'- \[x\].*\(https://outlook\.office365\.com/owa/\?ItemID=([^&]+)&')`.
+- A URL with an actual `#fragment` in body → must NOT be parsed as a tag.
 
 ## Testing strategy
 
