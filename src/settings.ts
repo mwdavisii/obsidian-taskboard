@@ -4,6 +4,7 @@ import type TaskboardPlugin from "./main";
 
 export interface Settings {
   dailyNotesFolder: string;
+  boardsFolder: string;
   newTaskDailyNoteFormat: string;
   excludeFolders: string[];
   excludeFiles: string[];
@@ -14,6 +15,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   dailyNotesFolder: "00_DailyNotes",
+  boardsFolder: "Boards",
   newTaskDailyNoteFormat: "MM-DD-YYYY",
   excludeFolders: ["Templates"],
   excludeFiles: [],
@@ -53,6 +55,16 @@ export class TaskboardSettingTab extends PluginSettingTab {
       .addText((t) =>
         t.setValue(this.plugin.settings.dailyNotesFolder).onChange(async (v) => {
           this.plugin.settings.dailyNotesFolder = v.trim();
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Boards folder")
+      .setDesc("Vault-relative folder where new boards are created.")
+      .addText((t) =>
+        t.setValue(this.plugin.settings.boardsFolder).onChange(async (v) => {
+          this.plugin.settings.boardsFolder = v.trim();
           await this.plugin.saveSettings();
         })
       );

@@ -1,8 +1,9 @@
-import { Plugin, TFile, WorkspaceLeaf, debounce, Notice } from "obsidian";
+import { Plugin, TFile, WorkspaceLeaf, debounce, Notice, normalizePath } from "obsidian";
 import { Settings, DEFAULT_SETTINGS, TaskboardSettingTab } from "./settings";
 import { TaskIndex } from "./index/TaskIndex";
 import { BoardView, TASKBOARD_VIEW_TYPE } from "./view/BoardView";
 import { isBoardFrontmatter } from "./view/boardConfig";
+import { boardFrontmatter, uniqueBoardPath } from "./view/newBoard";
 
 export default class TaskboardPlugin extends Plugin {
   settings!: Settings;
@@ -77,6 +78,40 @@ export default class TaskboardPlugin extends Plugin {
         return isBoard;
       },
     });
+
+    this.addCommand({
+      id: "create-new-board",
+      name: "Create new board",
+      callback: () => void this.createNewBoard(),
+    });
+  }
+
+  private async createNewBoard(): Promise<void> {
+    const folder = this.settings.boardsFolder.replace(/\/+$/, "");
+    if (folder && !this.app.vault.getAbstractFileByPath(folder)) {
+      try {
+        await this.app.vault.createFolder(folder);
+      } catch {
+        // Folder may have been created concurrently; ignore.
+      }
+    }
+    const path = normalizePath(
+      uniqueBoardPath(
+        folder,
+        "Untitled Board",
+        (p) => this.app.vault.getAbstractFileByPath(p) !== null
+      )
+    );
+    const name = path.split("/").pop()!.replace(/\.md$/, "");
+    const content =
+      boardFrontmatter(this.settings.defaultColumns, "daily_note") +
+      `\n# ${name}\n`;
+    try {
+      const file = await this.app.vault.create(path, content);
+      await this.openBoard(file);
+    } catch (e) {
+      new Notice("Failed to create board: " + String(e));
+    }
   }
 
   private async openBoardForActiveFile(): Promise<void> {
