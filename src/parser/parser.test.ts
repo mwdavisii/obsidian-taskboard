@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { computeTaskId } from "./taskId";
 import { parseLine } from "./parseLine";
+import { serializeTask } from "./serializeTask";
 
 describe("computeTaskId", () => {
   it("is stable for the same file + body", () => {
@@ -98,8 +99,76 @@ describe("parseLine", () => {
     expect(t.body).toBe("Nested");
   });
 
-  it("preserves an html comment (in body until trailing split lands in Task 5)", () => {
-    const t = parseLine("- [ ] Reply <!-- mid:ABC123= -->", F, 0)!;
-    expect(t.body).toContain("<!-- mid:ABC123= -->");
+});
+
+describe("serializeTask", () => {
+  const F = "Daily/2026-06-05.md";
+
+  it("serializes a plain unchecked task", () => {
+    const t = parseLine("- [ ] Reply to vendor", F, 0)!;
+    expect(serializeTask(t)).toBe("- [ ] Reply to vendor");
   });
+
+  it("serializes due date and priority in fixed order", () => {
+    const t = parseLine("- [ ] Pay ⏫ 📅 2026-06-30", F, 0)!;
+    // Fixed order: body, due, priority, tags, trailing.
+    expect(serializeTask(t)).toBe("- [ ] Pay 📅 2026-06-30 ⏫");
+  });
+
+  it("emits tags after metadata", () => {
+    const t = parseLine("- [ ] Triage #todo", F, 0)!;
+    expect(serializeTask(t)).toBe("- [ ] Triage #todo");
+  });
+
+  it("preserves indentation on serialize", () => {
+    const t = parseLine("    - [ ] Nested", F, 0)!;
+    expect(serializeTask(t)).toBe("    - [ ] Nested");
+  });
+});
+
+describe("html comment goes to trailing", () => {
+  const F = "Daily/2026-06-05.md";
+  it("splits an html comment out of body into trailing", () => {
+    const t = parseLine("- [ ] Reply <!-- mid:ABC123= -->", F, 0)!;
+    expect(t.body).toBe("Reply");
+    expect(t.trailing).toBe("<!-- mid:ABC123= -->");
+  });
+});
+
+describe("round-trip", () => {
+  const F = "Daily/2026-06-05.md";
+
+  const lines = [
+    "- [ ] Reply to vendor",
+    "- [x] Done thing",
+    "- [ ] Pay invoice 📅 2026-06-30",
+    "- [ ] Big task ⏫",
+    "- [ ] Triage #todo #project/epic",
+    "    - [ ] Nested task",
+    "- [ ] Reply <!-- mid:ABC123= -->",
+  ];
+
+  for (const line of lines) {
+    it(`round-trips: ${line}`, () => {
+      const once = parseLine(line, F, 0)!;
+      const out = serializeTask(once);
+      const twice = parseLine(out, F, 0)!;
+      // Semantic equality (ignore lineNumber/rawLine/id which depend on input text).
+      expect({
+        checked: twice.checked,
+        body: twice.body,
+        dueDate: twice.dueDate,
+        priority: twice.priority,
+        tags: twice.tags,
+        trailing: twice.trailing,
+      }).toEqual({
+        checked: once.checked,
+        body: once.body,
+        dueDate: once.dueDate,
+        priority: once.priority,
+        tags: once.tags,
+        trailing: once.trailing,
+      });
+    });
+  }
 });

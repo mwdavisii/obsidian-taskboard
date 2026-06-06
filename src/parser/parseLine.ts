@@ -51,6 +51,15 @@ export function parseLine(
     }
   }
 
+  // HTML comments (e.g. the cleanup pipeline's mid markers) → trailing.
+  let trailing = "";
+  const COMMENT_RE = /<!--.*?-->/g;
+  const comments = work.match(COMMENT_RE);
+  if (comments) {
+    trailing = comments.join(" ");
+    work = work.replace(COMMENT_RE, " ");
+  }
+
   // Tags (whitespace-prefixed).
   const tags: string[] = [];
   work = work.replace(TAG_RE, (_full, tag) => {
@@ -72,6 +81,6 @@ export function parseLine(
     dueDate,
     priority,
     tags,
-    trailing: "",
+    trailing,
   };
 }
