@@ -46,7 +46,7 @@ export function parseLine(
   for (const glyph of Object.keys(PRIORITY_MAP)) {
     if (work.includes(glyph)) {
       priority = PRIORITY_MAP[glyph];
-      work = work.split(glyph).join(" ");
+      work = work.replace(glyph, " ");
       break;
     }
   }
@@ -58,6 +58,8 @@ export function parseLine(
     return " ";
   });
 
+  // Collapse whitespace gaps left by metadata removal. Note: multi-space runs in
+  // the original body text are not preserved (rawLine keeps the verbatim line).
   const body = work.replace(/\s+/g, " ").trim();
 
   return {
