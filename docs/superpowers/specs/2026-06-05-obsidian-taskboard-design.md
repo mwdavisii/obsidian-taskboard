@@ -86,14 +86,16 @@ A task has no `status` field. **Status is derived per-board** at render time: gi
 ```yaml
 ---
 taskboard: true
-columns:
-  - { name: "Backlog", tag: null }     # null = catch-all for un-tagged tasks
-  - { name: "Todo",    tag: "#todo" }
-  - { name: "Doing",   tag: "#doing" }
-  - { name: "Done",    tag: "#done" }
-new_task_destination: daily_note       # or vault-relative path
+columns:                                 # list of "Name" or "Name:#tag" strings
+  - "Backlog"                            # no tag = catch-all for un-tagged tasks
+  - "Todo:#todo"
+  - "Doing:#doing"
+  - "Done:#done"
+new_task_destination: daily_note         # or vault-relative path
 ---
 ```
+
+> Columns are encoded as a **list of strings** (`"Name"` or `"Name:#tag"`) rather than a list of objects, because Obsidian's Properties panel only supports lists of scalars — a list of objects would show as "Invalid Properties". `parseBoardConfig` also accepts the legacy `{ name, tag }` object form for hand-written boards.
 
 Opening this file in `taskboard-view` renders the board. Opening it as normal markdown shows the frontmatter (harmless). A command toggles views; the choice is remembered per file.
 

@@ -2720,10 +2720,10 @@ In Obsidian: Settings → Community plugins → enable "Taskboard". Create a not
 ---
 taskboard: true
 columns:
-  - { name: "Backlog", tag: null }
-  - { name: "Todo", tag: "#todo" }
-  - { name: "Doing", tag: "#doing" }
-  - { name: "Done", tag: "#done" }
+  - "Backlog"
+  - "Todo:#todo"
+  - "Doing:#doing"
+  - "Done:#done"
 new_task_destination: daily_note
 ---
 ```
