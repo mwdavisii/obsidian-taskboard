@@ -35,11 +35,15 @@
   min-height: 40px;
 }
 .tb-card {
+  box-sizing: border-box;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   padding: 8px;
   margin-bottom: 8px;
+}
+.tb-card-draggable {
+  box-sizing: border-box;
 }
 .tb-card-body {
   cursor: text;

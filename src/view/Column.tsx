@@ -1,3 +1,4 @@
+import { createPortal } from "preact/compat";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Task, Column as ColumnType } from "../types";
 import { Card } from "./Card";
@@ -46,14 +47,15 @@ export function Column({
             {tasks.length === 0 && <div class="tb-empty">Drop tasks here</div>}
             {tasks.map((task, i) => (
               <Draggable draggableId={task.id} index={i} key={task.id}>
-                {(dp) => {
+                {(dp, snapshot) => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const draggableProps = dp.draggableProps as any;
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const dragHandleProps = (dp.dragHandleProps ?? {}) as any;
-                  return (
+                  const node = (
                     <div
                       ref={dp.innerRef}
+                      class="tb-card-draggable"
                       {...draggableProps}
                       {...dragHandleProps}
                     >
@@ -66,6 +68,12 @@ export function Column({
                       />
                     </div>
                   );
+                  // While dragging, render the card into a body-level portal so it
+                  // escapes Obsidian's transformed/contained workspace panes — which
+                  // otherwise shift and mis-size the position:fixed drag clone.
+                  return snapshot.isDragging
+                    ? createPortal(node, document.body)
+                    : node;
                 }}
               </Draggable>
             ))}
