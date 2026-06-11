@@ -22,6 +22,11 @@ the underlying task line is rewritten in place.
   rest of the file) is left untouched.
 - **Live updates.** The index watches vault create/modify/delete/rename events,
   so edits made anywhere in your vault show up on the board, and vice-versa.
+- **A board note *is* a board.** Opening a board note — clicking it in the
+  explorer, or navigating back to it — shows the Kanban view, not raw markdown.
+  To edit the note itself (columns, filters), use the **Edit board note** (✎)
+  action in the board's title bar; it opens the underlying markdown in source
+  mode, and your changes show on the board as soon as you save.
 
 ### Recognized task metadata
 
@@ -106,6 +111,21 @@ exclude_tags:           # blacklist — always wins
   can't force a destination folder, so new tasks still go to your configured
   `new_task_destination`.)
 
+## Working with a board
+
+- **Add a task** with the **+** in a column header. It's written to the board's
+  `new_task_destination` (with the column's status tag, plus the board's
+  `include_tags` if any).
+- **Edit a task** by clicking its card text; **due date** and **priority** show
+  as chips you can click to change, and the filename link jumps to the source line.
+- **Markdown links are shown as their label.** A `[label](url)` in a task renders
+  as just a clickable **label**, so a long URL doesn't bloat the card — the link
+  still opens, and the underlying markdown is left untouched.
+- **Columns are capped for performance.** Each column renders at most
+  *Max cards per column* cards (the header shows the true total); any extra appear
+  as a `+N more — narrow this board with filters` hint. If a column overflows,
+  narrow the board rather than raising the cap.
+
 ## Settings
 
 | Setting                    | Default          | Description                                                  |
@@ -159,7 +179,7 @@ src/
   parser/          parse a markdown line into a Task; stable task ids; serialize back
   index/           TaskIndex — vault scan + incremental event handling
   mutator/         TaskMutator — the only unit that writes task lines to disk
-  view/            BoardView + Preact components (Board, Column, Card), column config & derivation
+  view/            BoardView + Preact components (Board, Column, Card), board config, filtering & column derivation
   util/            daily-note resolution, exclude-glob matching
 ```
 
