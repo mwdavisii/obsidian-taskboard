@@ -1,4 +1,4 @@
-import { BoardConfig, Column } from "../types";
+import { BoardConfig, BoardFilter, Column } from "../types";
 
 /** Frontmatter is whatever Obsidian's metadataCache hands us — an untyped record. */
 type Frontmatter = Record<string, unknown> | null | undefined;
@@ -28,6 +28,30 @@ function normalizeColumn(raw: unknown): Column | null {
   return { name, tag };
 }
 
+/** Coerce a frontmatter value (list or lone scalar) into a trimmed string array. */
+function toStringArray(raw: unknown): string[] {
+  const arr = typeof raw === "string" ? [raw] : Array.isArray(raw) ? raw : [];
+  return arr
+    .filter((x): x is string => typeof x === "string")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/** Tags may be written with or without a leading `#`; normalize to `#tag`. */
+function normalizeTag(t: string): string {
+  return t.startsWith("#") ? t : "#" + t;
+}
+
+function parseFilter(fm: Frontmatter): BoardFilter {
+  const f = fm ?? {};
+  return {
+    includeFolders: toStringArray(f["include_folders"]),
+    excludeFolders: toStringArray(f["exclude_folders"]),
+    includeTags: toStringArray(f["include_tags"]).map(normalizeTag),
+    excludeTags: toStringArray(f["exclude_tags"]).map(normalizeTag),
+  };
+}
+
 export function parseBoardConfig(
   fm: Frontmatter,
   defaultColumns: Column[]
@@ -46,5 +70,6 @@ export function parseBoardConfig(
   return {
     columns: columns.length > 0 ? columns : defaultColumns,
     newTaskDestination: dest,
+    filter: parseFilter(fm),
   };
 }

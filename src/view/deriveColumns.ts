@@ -32,8 +32,20 @@ function compareTasks(a: Task, b: Task, mtimes: MtimeMap): number {
 }
 
 /**
- * Group tasks into columns by status tag, then sort each column.
- * A task lands in the first column whose tag it carries; tasks with no
+ * The board's terminal column, identified the same way as TaskMutator: named
+ * "done" (any case) or carrying the `#done` tag. Checked tasks are routed here.
+ */
+function findDoneColumn(columns: Column[]): Column | undefined {
+  return columns.find(
+    (c) => c.name.toLowerCase() === "done" || c.tag === "#done"
+  );
+}
+
+/**
+ * Group tasks into columns, then sort each column. A checked (`[x]`) task goes
+ * to the Done column regardless of its tags — completing a task anywhere in the
+ * vault (e.g. via the Obsidian Tasks plugin's `[x]` + `✅ date`) reads as done.
+ * Otherwise a task lands in the first column whose tag it carries; tasks with no
  * matching tag land in the column whose tag is null (Backlog).
  * Returns an object keyed by column name.
  */
@@ -46,10 +58,18 @@ export function deriveColumns(
   for (const col of columns) result[col.name] = [];
 
   const nullColumn = columns.find((c) => c.tag === null);
+  const doneColumn = findDoneColumn(columns);
 
   for (const t of tasks) {
-    const match = columns.find((c) => c.tag !== null && t.tags.includes(c.tag));
-    const target = match ?? nullColumn;
+    let target: Column | undefined;
+    if (t.checked && doneColumn) {
+      target = doneColumn;
+    } else {
+      const match = columns.find(
+        (c) => c.tag !== null && t.tags.includes(c.tag)
+      );
+      target = match ?? nullColumn;
+    }
     if (target) result[target.name].push(t);
   }
 

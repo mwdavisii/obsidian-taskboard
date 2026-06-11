@@ -1,4 +1,5 @@
 import { Task, Priority } from "../types";
+import { parseBodySegments } from "./cardBody";
 
 interface CardProps {
   task: Task;
@@ -45,7 +46,25 @@ export function Card({
           }
         }}
       >
-        {task.body}
+        {parseBodySegments(task.body).map((seg, i) =>
+          seg.type === "link" ? (
+            <a
+              key={i}
+              class="tb-link"
+              href={seg.url}
+              onClick={(e) => {
+                // Don't trigger the card's edit prompt; open the link instead.
+                e.stopPropagation();
+                e.preventDefault();
+                window.open(seg.url, "_blank");
+              }}
+            >
+              {seg.label}
+            </a>
+          ) : (
+            <span key={i}>{seg.text}</span>
+          )
+        )}
       </div>
       <div class="tb-card-meta">
         {task.dueDate && (

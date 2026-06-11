@@ -36,11 +36,29 @@ export interface Column {
   tag: string | null;
 }
 
+/**
+ * Per-board task filter, parsed from a board note's frontmatter. Applied on top
+ * of the plugin-level global excludes (which run at index time). Include lists
+ * are whitelists ("only these"); exclude lists always win. Folder and tag rules
+ * are evaluated independently — a task must pass both to appear on the board.
+ */
+export interface BoardFilter {
+  /** If non-empty, only tasks in one of these folders (globs) are shown. */
+  includeFolders: string[];
+  /** Tasks in any of these folders (globs) are hidden. */
+  excludeFolders: string[];
+  /** If non-empty, only tasks carrying one of these tags are shown. */
+  includeTags: string[];
+  /** Tasks carrying any of these tags are hidden. */
+  excludeTags: string[];
+}
+
 /** Board configuration parsed from a board note's frontmatter. */
 export interface BoardConfig {
   columns: Column[];
   /** "daily_note" or a vault-relative path. */
   newTaskDestination: string;
+  filter: BoardFilter;
 }
 
 export type IndexEvent =

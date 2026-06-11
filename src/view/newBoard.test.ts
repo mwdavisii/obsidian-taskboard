@@ -17,6 +17,35 @@ describe("boardFrontmatter", () => {
     expect(fm.trimEnd().endsWith("---")).toBe(true);
   });
 
+  it("seeds empty include/exclude filter lists by default", () => {
+    const fm = boardFrontmatter(columns, "daily_note");
+    expect(fm).toContain("include_folders: []");
+    expect(fm).toContain("exclude_folders: []");
+    expect(fm).toContain("include_tags: []");
+    expect(fm).toContain("exclude_tags: []");
+  });
+
+  it("writes seeded excludes as a YAML list and parses back identically", async () => {
+    const { parseBoardConfig } = await import("./boardConfig");
+    const fm = boardFrontmatter(columns, "daily_note", {
+      excludeFolders: ["00_DailyNotes"],
+      excludeTags: ["#someday"],
+    });
+    expect(fm).toContain("exclude_folders:\n" + '  - "00_DailyNotes"');
+    expect(fm).toContain("exclude_tags:\n" + '  - "#someday"');
+    // Shape Obsidian would parse this YAML into:
+    const cfg = parseBoardConfig(
+      {
+        taskboard: true,
+        exclude_folders: ["00_DailyNotes"],
+        exclude_tags: ["#someday"],
+      },
+      []
+    );
+    expect(cfg.filter.excludeFolders).toEqual(["00_DailyNotes"]);
+    expect(cfg.filter.excludeTags).toEqual(["#someday"]);
+  });
+
   it("serializes a null tag as a bare string and a string tag as Name:#tag", () => {
     const fm = boardFrontmatter(columns, "daily_note");
     expect(fm).toContain('- "Backlog"');

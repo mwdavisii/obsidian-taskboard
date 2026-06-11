@@ -4,6 +4,7 @@ import { TaskIndex } from "../index/TaskIndex";
 import { TaskMutator } from "../mutator/TaskMutator";
 import { BoardConfig, Task, Priority, Column as ColumnType } from "../types";
 import { useTaskIndex } from "./hooks";
+import { filterTasks } from "./boardFilter";
 import { deriveColumns, MtimeMap } from "./deriveColumns";
 import { Column } from "./Column";
 
@@ -12,6 +13,7 @@ interface BoardProps {
   mutator: TaskMutator;
   config: BoardConfig;
   mtimes: MtimeMap;
+  maxCards: number;
   onOpenSource: (task: Task) => void;
   onAdd: (column: ColumnType, body: string) => void;
 }
@@ -30,19 +32,23 @@ export function Board({
   mutator,
   config,
   mtimes,
+  maxCards,
   onOpenSource,
   onAdd,
 }: BoardProps) {
-  const tasks = useTaskIndex(index);
+  const allTasks = useTaskIndex(index);
+  const tasks = filterTasks(allTasks, config.filter);
   // Optimistic placement: {taskId -> columnName} applied until the index catches up.
   const [override, setOverride] = useState<{ id: string; column: string } | null>(
     null
   );
 
   // Once the index reflects new state, drop the optimistic override.
+  // Depend on the raw (pre-filter) list: filterTasks returns a fresh array each
+  // render, which would otherwise clear the override before it takes effect.
   useEffect(() => {
     setOverride(null);
-  }, [tasks]);
+  }, [allTasks]);
 
   const grouped = deriveColumns(tasks, config.columns, mtimes);
   if (override) {
@@ -85,6 +91,7 @@ export function Board({
             key={col.name}
             column={col}
             tasks={grouped[col.name] ?? []}
+            maxCards={maxCards}
             onAdd={onAdd}
             onOpenSource={onOpenSource}
             onEditText={(t, body) => void mutator.setText(t, body)}

@@ -14,6 +14,9 @@ the underlying task line is rewritten in place.
 - **Columns are tags.** Each column maps to a status tag (e.g. `#todo`,
   `#doing`, `#done`). A task lands in the first column whose tag it carries.
   The one column with no tag is the catch-all **Backlog**.
+- **Completed tasks land in Done.** A checked task (`[x]`, e.g. completed by the
+  Obsidian Tasks plugin with a `✅` date) goes to the Done column regardless of
+  its tags — so vault-wide completions don't pile up in Backlog.
 - **Dragging rewrites the source.** Moving a card swaps its status tag in the
   original file via an atomic, line-level edit — the rest of the line (and the
   rest of the file) is left untouched.
@@ -64,6 +67,45 @@ new_task_destination: daily_note
 `new_task_destination` is where newly-created tasks are written: `daily_note`
 (today's daily note) or a vault-relative path to a specific file.
 
+### Scoping a board to folders or tags
+
+By default a board shows every task in your vault (minus the global excludes in
+settings) — on a large vault that means thousands of cards, so a board you intend
+to keep should be narrowed. New boards are created with empty `include_*`/`exclude_*`
+lists already in their frontmatter, so you can fill them in straight from Obsidian's
+Properties panel (or via the board's **Edit board note** ✎ action). Use any of these
+keys to narrow a board down — so you can, for example, keep a board for just one
+project folder, or a board built from a single tag:
+
+```yaml
+---
+taskboard: true
+columns:
+  - "Todo:#todo"
+  - "Done:#done"
+include_folders:        # whitelist — only tasks in these folders (globs ok)
+  - "Projects/Acme"
+exclude_folders:        # blacklist — always wins
+  - "Projects/Acme/Archive/**"
+include_tags:           # whitelist — only tasks carrying one of these
+  - "#work"
+exclude_tags:           # blacklist — always wins
+  - "#someday"
+---
+```
+
+- **Include lists are whitelists**: if non-empty, a task must match to appear.
+  Leave a list out (or empty) to impose no whitelist on that dimension.
+- **Exclude always wins**, even over an include match.
+- **Folders and tags are independent** — a task must pass *both* to show.
+- Tags may be written with or without the leading `#`.
+- These board filters stack *on top of* the global excludes in settings; the
+  global excludes are a baseline a board can narrow but not re-widen.
+- When you add a task to a tag-scoped board, its `include_tags` are written onto
+  the new task line so it actually lands on the board. (A folder-scoped board
+  can't force a destination folder, so new tasks still go to your configured
+  `new_task_destination`.)
+
 ## Settings
 
 | Setting                    | Default          | Description                                                  |
@@ -76,6 +118,9 @@ new_task_destination: daily_note
 | Exclude tags               | `#archived`      | Tasks carrying any of these are hidden.                      |
 | Default columns            | Backlog/Todo/Doing/Done | Columns used by new boards and tagless boards.        |
 | Check the box on Done      | on               | Also mark a task `[x]` when its card moves to a Done column. |
+| Max cards per column       | `100`            | Cap on cards rendered per column; keeps large boards responsive. |
+| New board: exclude folders | —                | Folder globs seeded into new boards' `exclude_folders` (e.g. your daily-notes folder). |
+| New board: exclude tags    | —                | Tags seeded into new boards' `exclude_tags`.                 |
 
 ## Development
 
@@ -91,10 +136,18 @@ npm run build      # type-check, then production build
 npm test           # run the unit tests
 ```
 
-To try it in a vault, symlink (or copy) this repo into
-`<vault>/.obsidian/plugins/obsidian-taskboard/` so that `manifest.json`,
-`main.js`, and `styles.css` sit alongside each other, then enable **Taskboard**
-in Obsidian's community-plugins settings.
+To try it in a vault, run the helper script to symlink the built files into the
+vault's plugin folder (works from wherever you cloned the repo):
+
+```bash
+npm run build                 # produce main.js first
+./install.sh /path/to/vault   # or: OBSIDIAN_VAULT=/path/to/vault ./install.sh
+```
+
+This links `manifest.json`, `main.js`, and `styles.css` into
+`<vault>/.obsidian/plugins/obsidian-taskboard/`; then enable **Taskboard** in
+Obsidian's community-plugins settings. (You can also copy those three files there
+by hand.)
 
 ### Project layout
 

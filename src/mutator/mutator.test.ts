@@ -160,4 +160,19 @@ describe("TaskMutator.createTask", () => {
     expect(vault.files["daily.md"]).toContain("- [ ] Untriaged");
     expect(vault.files["daily.md"]).not.toContain("- [ ] Untriaged #");
   });
+
+  it("appends a board's include tags so the task lands on a tag-scoped board", async () => {
+    const vault = fakeVault({ "daily.md": "# Today\n" });
+    const m = new TaskMutator(vault as any, columns, true);
+    await m.createTask("daily.md", "New thing", columns[1], ["#work"]); // Todo + #work
+    expect(vault.files["daily.md"]).toContain("- [ ] New thing #todo #work");
+  });
+
+  it("does not duplicate a tag that is both the column tag and an include tag", async () => {
+    const vault = fakeVault({ "daily.md": "# Today\n" });
+    const m = new TaskMutator(vault as any, columns, true);
+    await m.createTask("daily.md", "New thing", columns[1], ["#todo"]);
+    expect(vault.files["daily.md"]).toContain("- [ ] New thing #todo");
+    expect(vault.files["daily.md"]).not.toContain("#todo #todo");
+  });
 });

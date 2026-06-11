@@ -89,4 +89,50 @@ describe("parseBoardConfig", () => {
     );
     expect(cfg.columns[0]).toEqual({ name: "Q3: Planning", tag: null });
   });
+
+  it("defaults to an empty filter when no filter keys are present", () => {
+    const cfg = parseBoardConfig({ taskboard: true }, defaultColumns);
+    expect(cfg.filter).toEqual({
+      includeFolders: [],
+      excludeFolders: [],
+      includeTags: [],
+      excludeTags: [],
+    });
+  });
+
+  it("reads include/exclude folder and tag lists", () => {
+    const cfg = parseBoardConfig(
+      {
+        taskboard: true,
+        include_folders: ["Work", "Projects/**"],
+        exclude_folders: ["Work/Archive"],
+        include_tags: ["#work"],
+        exclude_tags: ["#someday"],
+      },
+      defaultColumns
+    );
+    expect(cfg.filter).toEqual({
+      includeFolders: ["Work", "Projects/**"],
+      excludeFolders: ["Work/Archive"],
+      includeTags: ["#work"],
+      excludeTags: ["#someday"],
+    });
+  });
+
+  it("normalizes tags written without a leading #", () => {
+    const cfg = parseBoardConfig(
+      { taskboard: true, include_tags: ["work"], exclude_tags: ["someday"] },
+      defaultColumns
+    );
+    expect(cfg.filter.includeTags).toEqual(["#work"]);
+    expect(cfg.filter.excludeTags).toEqual(["#someday"]);
+  });
+
+  it("accepts a lone scalar string as a single-entry filter list", () => {
+    const cfg = parseBoardConfig(
+      { taskboard: true, include_folders: "Work" },
+      defaultColumns
+    );
+    expect(cfg.filter.includeFolders).toEqual(["Work"]);
+  });
 });

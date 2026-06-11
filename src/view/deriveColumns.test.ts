@@ -43,6 +43,46 @@ describe("deriveColumns", () => {
     expect(result["Todo"].map((t) => t.body)).toEqual(["A"]);
   });
 
+  it("routes a checked task with no status tag to Done (not Backlog)", () => {
+    const tasks = [task({ checked: true, tags: [], body: "A" })];
+    const result = deriveColumns(tasks, columns, {});
+    expect(result["Done"].map((t) => t.body)).toEqual(["A"]);
+    expect(result["Backlog"]).toEqual([]);
+  });
+
+  it("routes a checked task to Done even when it carries another status tag", () => {
+    const tasks = [task({ checked: true, tags: ["#todo"], body: "A" })];
+    const result = deriveColumns(tasks, columns, {});
+    expect(result["Done"].map((t) => t.body)).toEqual(["A"]);
+    expect(result["Todo"]).toEqual([]);
+  });
+
+  it("still places an unchecked #done task in Done", () => {
+    const tasks = [task({ checked: false, tags: ["#done"], body: "A" })];
+    const result = deriveColumns(tasks, columns, {});
+    expect(result["Done"].map((t) => t.body)).toEqual(["A"]);
+  });
+
+  it("detects a renamed Done column (named 'done' without the #done tag)", () => {
+    const renamed: Column[] = [
+      { name: "Backlog", tag: null },
+      { name: "Done", tag: null },
+    ];
+    const tasks = [task({ checked: true, tags: [], body: "A" })];
+    const result = deriveColumns(tasks, renamed, {});
+    expect(result["Done"].map((t) => t.body)).toEqual(["A"]);
+  });
+
+  it("leaves a checked task in tag/Backlog placement when there is no Done column", () => {
+    const noDone: Column[] = [
+      { name: "Backlog", tag: null },
+      { name: "Todo", tag: "#todo" },
+    ];
+    const tasks = [task({ checked: true, tags: [], body: "A" })];
+    const result = deriveColumns(tasks, noDone, {});
+    expect(result["Backlog"].map((t) => t.body)).toEqual(["A"]);
+  });
+
   it("sorts by due date (nulls last), then priority, then mtime", () => {
     const tasks = [
       task({ tags: ["#todo"], body: "no-due", dueDate: null }),

@@ -1,4 +1,10 @@
-import { Column } from "../types";
+import { BoardFilter, Column } from "../types";
+
+/** Emit a YAML list property: `key: []` when empty, otherwise a quoted-string list. */
+function yamlList(key: string, items: string[]): string {
+  if (items.length === 0) return `${key}: []`;
+  return [`${key}:`, ...items.map((i) => `  - "${i}"`)].join("\n");
+}
 
 /**
  * Build the YAML frontmatter (including the surrounding `---` fences) for a new
@@ -7,7 +13,8 @@ import { Column } from "../types";
  */
 export function boardFrontmatter(
   columns: Column[],
-  newTaskDestination: string
+  newTaskDestination: string,
+  filter?: Partial<BoardFilter>
 ): string {
   const lines: string[] = ["---", "taskboard: true", "columns:"];
   for (const c of columns) {
@@ -15,6 +22,13 @@ export function boardFrontmatter(
     lines.push(`  - "${entry}"`);
   }
   lines.push(`new_task_destination: ${newTaskDestination}`);
+  // Seed the filter lists (pre-filled from settings, else empty) so they surface
+  // in Obsidian's Properties panel — a board over a big vault should be narrowed
+  // here before it renders well.
+  lines.push(yamlList("include_folders", filter?.includeFolders ?? []));
+  lines.push(yamlList("exclude_folders", filter?.excludeFolders ?? []));
+  lines.push(yamlList("include_tags", filter?.includeTags ?? []));
+  lines.push(yamlList("exclude_tags", filter?.excludeTags ?? []));
   lines.push("---");
   return lines.join("\n") + "\n";
 }

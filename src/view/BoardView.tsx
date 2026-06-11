@@ -8,6 +8,7 @@ import { parseBoardConfig } from "./boardConfig";
 import { MtimeMap } from "./deriveColumns";
 import { Board } from "./Board";
 import { resolveTodayDailyNote } from "../util/dailyNote";
+import type TaskboardPlugin from "../main";
 
 export const TASKBOARD_VIEW_TYPE = "taskboard-view";
 
@@ -22,7 +23,8 @@ export class BoardView extends ItemView {
   constructor(
     leaf: WorkspaceLeaf,
     private index: TaskIndex,
-    private settings: Settings
+    private settings: Settings,
+    private plugin: TaskboardPlugin
   ) {
     super(leaf);
   }
@@ -54,7 +56,27 @@ export class BoardView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
+    // The board is a custom view, so Obsidian's source/reading toggle doesn't
+    // apply — give the user an explicit way to open the note's markdown (to edit
+    // frontmatter: columns, filters, destination).
+    this.addAction("pencil", "Edit board note", () => this.openSource());
+
+    // Reflect frontmatter edits live: when the board note's metadata changes,
+    // re-read its config and re-render.
+    this.registerEvent(
+      this.app.metadataCache.on("changed", (file) => {
+        if (file.path === this.boardFilePath) this.renderBoard();
+      })
+    );
+
     if (this.boardFilePath) this.renderBoard();
+  }
+
+  /** Open the underlying board note as markdown in a new tab. */
+  private openSource(): void {
+    if (this.boardFilePath) {
+      void this.plugin.openBoardNoteAsMarkdown(this.boardFilePath);
+    }
   }
 
   async onClose(): Promise<void> {
@@ -118,7 +140,13 @@ export class BoardView extends ItemView {
       } else {
         destPath = config.newTaskDestination;
       }
-      if (destPath) await mutator.createTask(destPath, body, column);
+      if (destPath)
+        await mutator.createTask(
+          destPath,
+          body,
+          column,
+          config.filter.includeTags
+        );
     };
 
     render(
@@ -127,6 +155,7 @@ export class BoardView extends ItemView {
         mutator,
         config,
         mtimes: this.buildMtimes(),
+        maxCards: this.settings.maxCardsPerColumn,
         onOpenSource,
         onAdd,
       }),

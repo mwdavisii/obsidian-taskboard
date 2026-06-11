@@ -92,17 +92,23 @@ export class TaskMutator {
 
   /**
    * Append a new task line to a destination file. Creates a `- [ ]` line with
-   * the column's status tag (if any). Returns the new line's text.
+   * the column's status tag (if any) plus any `extraTags` (e.g. a tag-scoped
+   * board's include tags, so the new task actually lands on that board).
+   * Returns the new line's text.
    */
   async createTask(
     destPath: string,
     body: string,
-    column: Column
+    column: Column,
+    extraTags: string[] = []
   ): Promise<string | null> {
     const file = this.vault.getAbstractFileByPath(destPath);
     if (!file) return null;
-    const tag = column.tag ? ` ${column.tag}` : "";
-    const newLine = `- [ ] ${body}${tag}`;
+    const tags: string[] = [];
+    if (column.tag) tags.push(column.tag);
+    for (const t of extraTags) if (t && !tags.includes(t)) tags.push(t);
+    const suffix = tags.length > 0 ? ` ${tags.join(" ")}` : "";
+    const newLine = `- [ ] ${body}${suffix}`;
     await this.vault.process(file as TFile, (data) => {
       const sep = data.length > 0 && !data.endsWith("\n") ? "\n" : "";
       return data + sep + newLine + "\n";

@@ -17,12 +17,20 @@ function folderToRegExp(pattern: string): RegExp {
   return new RegExp(`^${body}$`);
 }
 
+/** True if `filePath` matches any of the folder globs. */
+export function folderMatchesAny(
+  filePath: string,
+  patterns: string[]
+): boolean {
+  return patterns.some((p) => folderToRegExp(p).test(filePath));
+}
+
 export function isFileExcluded(
   filePath: string,
   settings: ExclusionSettings
 ): boolean {
   if (settings.excludeFiles.includes(filePath)) return true;
-  return settings.excludeFolders.some((f) => folderToRegExp(f).test(filePath));
+  return folderMatchesAny(filePath, settings.excludeFolders);
 }
 
 export function isTaskExcluded(

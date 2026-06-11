@@ -3,6 +3,7 @@ import {
   TFile,
   TFolder,
   WorkspaceLeaf,
+  MarkdownView,
   debounce,
   Notice,
   normalizePath,
@@ -17,6 +18,16 @@ export default class TaskboardPlugin extends Plugin {
   settings!: Settings;
   index!: TaskIndex;
 
+  /**
+   * Leaves the user has explicitly opened as markdown (via "Edit board note").
+   * These are exempt from the auto-convert-to-board behavior, so frontmatter
+   * stays editable. WeakSet so entries vanish when a leaf is closed.
+   */
+  private forceMarkdownLeaves = new WeakSet<WorkspaceLeaf>();
+
+  /** Set while we deliberately open a board note as markdown, to mute auto-convert. */
+  private suppressAutoView = false;
+
   async onload(): Promise<void> {
     await this.loadSettings();
 
@@ -29,12 +40,14 @@ export default class TaskboardPlugin extends Plugin {
 
     this.registerView(
       TASKBOARD_VIEW_TYPE,
-      (leaf: WorkspaceLeaf) => new BoardView(leaf, this.index, this.settings)
+      (leaf: WorkspaceLeaf) =>
+        new BoardView(leaf, this.index, this.settings, this)
     );
 
     this.registerVaultEvents();
     this.registerCommands();
     this.registerFolderMenu();
+    this.registerBoardAutoView();
 
     this.addRibbonIcon("kanban-square", "Open taskboard", () => {
       void this.openBoardForActiveFile();
@@ -102,12 +115,86 @@ export default class TaskboardPlugin extends Plugin {
         if (!(file instanceof TFolder)) return;
         menu.addItem((item) =>
           item
+            // Group with the core "New note" / "New folder" creation items
+            // instead of dropping into the default section at the bottom.
+            .setSection("action-primary")
             .setTitle("New taskboard")
             .setIcon("kanban-square")
             .onClick(() => void this.createNewBoard(file.path))
         );
       })
     );
+  }
+
+  /** True if a file is a board note (`taskboard: true` in its frontmatter). */
+  private isBoardNote(file: TFile): boolean {
+    return isBoardFrontmatter(
+      this.app.metadataCache.getFileCache(file)?.frontmatter
+    );
+  }
+
+  /**
+   * Make board notes open as the board view, not raw markdown. A board is a
+   * custom ItemView and isn't bound to the `.md` extension, so any path that
+   * re-opens the file (back/forward navigation, clicking it in the explorer,
+   * a workspace restore) would otherwise land on the markdown view. When such a
+   * markdown open is detected for a board note, swap the leaf to the board view
+   * — unless the user explicitly asked to edit it as markdown.
+   */
+  private registerBoardAutoView(): void {
+    this.registerEvent(
+      this.app.workspace.on("file-open", (file) => {
+        if (this.suppressAutoView) return;
+        if (!file || !this.isBoardNote(file)) return;
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!view || view.file?.path !== file.path) return;
+        if (this.forceMarkdownLeaves.has(view.leaf)) return;
+        void view.leaf.setViewState({
+          type: TASKBOARD_VIEW_TYPE,
+          state: { boardFilePath: file.path },
+          active: true,
+        });
+      })
+    );
+  }
+
+  /**
+   * Open a board note as raw markdown so its frontmatter (columns, filters) can
+   * be edited. Opens in source mode so the `---` block is visible even when the
+   * user's "Properties in document" display is hidden. Reuses an existing
+   * markdown tab for the file if one is open, else a new tab; the leaf is flagged
+   * exempt from auto-convert so it stays markdown.
+   */
+  async openBoardNoteAsMarkdown(filePath: string): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof TFile)) return;
+
+    // Reuse a markdown tab already showing this file, if any.
+    let existing: WorkspaceLeaf | null = null;
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (
+        !existing &&
+        leaf.view instanceof MarkdownView &&
+        leaf.view.file?.path === filePath
+      ) {
+        existing = leaf;
+      }
+    });
+    const leaf = existing ?? this.app.workspace.getLeaf("tab");
+
+    // Flag the leaf (survives later re-opens) and mute auto-convert for the
+    // synchronous file-open this triggers — belt and suspenders against the race.
+    this.forceMarkdownLeaves.add(leaf);
+    this.suppressAutoView = true;
+    try {
+      await leaf.openFile(file, {
+        active: true,
+        state: { mode: "source", source: true },
+      });
+    } finally {
+      this.suppressAutoView = false;
+    }
+    void this.app.workspace.revealLeaf(leaf);
   }
 
   /**
@@ -136,8 +223,10 @@ export default class TaskboardPlugin extends Plugin {
     );
     const name = path.split("/").pop()!.replace(/\.md$/, "");
     const content =
-      boardFrontmatter(this.settings.defaultColumns, "daily_note") +
-      `\n# ${name}\n`;
+      boardFrontmatter(this.settings.defaultColumns, "daily_note", {
+        excludeFolders: this.settings.newBoardExcludeFolders,
+        excludeTags: this.settings.newBoardExcludeTags,
+      }) + `\n# ${name}\n`;
     try {
       const file = await this.app.vault.create(path, content);
       await this.openBoard(file);

@@ -6,6 +6,7 @@ import { Card } from "./Card";
 interface ColumnProps {
   column: ColumnType;
   tasks: Task[];
+  maxCards: number;
   onAdd: (column: ColumnType, body: string) => void;
   onOpenSource: (task: Task) => void;
   onEditText: (task: Task, body: string) => void;
@@ -16,12 +17,16 @@ interface ColumnProps {
 export function Column({
   column,
   tasks,
+  maxCards,
   onAdd,
   onOpenSource,
   onEditText,
   onSetDue,
   onCyclePriority,
 }: ColumnProps) {
+  // Render at most `maxCards` draggables — thousands of DnD nodes freeze the UI.
+  const visible = tasks.length > maxCards ? tasks.slice(0, maxCards) : tasks;
+  const hidden = tasks.length - visible.length;
   return (
     <div class="tb-column">
       <div class="tb-column-header">
@@ -45,7 +50,7 @@ export function Column({
             {...provided.droppableProps}
           >
             {tasks.length === 0 && <div class="tb-empty">Drop tasks here</div>}
-            {tasks.map((task, i) => (
+            {visible.map((task, i) => (
               <Draggable draggableId={task.id} index={i} key={task.id}>
                 {(dp, snapshot) => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,6 +83,11 @@ export function Column({
               </Draggable>
             ))}
             {provided.placeholder}
+            {hidden > 0 && (
+              <div class="tb-overflow">
+                +{hidden} more — narrow this board with filters
+              </div>
+            )}
           </div>
         )}
       </Droppable>
