@@ -142,20 +142,46 @@ export default class TaskboardPlugin extends Plugin {
    * — unless the user explicitly asked to edit it as markdown.
    */
   private registerBoardAutoView(): void {
+    // `file-open` is the primary trigger, but back/forward navigation can
+    // apply the markdown view-state *after* this event fires (overwriting an
+    // immediate swap), or fire before the markdown view is the active one (so
+    // the swap is skipped). `layout-change` fires once the workspace settles
+    // after such navigation, so re-asserting there wins that race. The helper
+    // is idempotent — a no-op once the leaf is already the board view — so
+    // running it from both events (and repeatedly) is safe.
     this.registerEvent(
       this.app.workspace.on("file-open", (file) => {
-        if (this.suppressAutoView) return;
-        if (!file || !this.isBoardNote(file)) return;
-        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!view || view.file?.path !== file.path) return;
-        if (this.forceMarkdownLeaves.has(view.leaf)) return;
-        void view.leaf.setViewState({
-          type: TASKBOARD_VIEW_TYPE,
-          state: { boardFilePath: file.path },
-          active: true,
-        });
+        if (file) this.maybeSwapToBoardView(file.path);
       })
     );
+    this.registerEvent(
+      this.app.workspace.on("layout-change", () => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (view?.file) this.maybeSwapToBoardView(view.file.path);
+      })
+    );
+  }
+
+  /**
+   * If the active leaf is showing the given board note as raw markdown, swap it
+   * to the board view. No-op when: the note isn't a board, we're deliberately
+   * opening it as markdown (`suppressAutoView`), the user opened it as markdown
+   * via the pencil action (`forceMarkdownLeaves`), or the leaf is already the
+   * board view. Because it only acts on a markdown leaf, calling it repeatedly
+   * (e.g. on every `layout-change`) can't loop or steal focus.
+   */
+  private maybeSwapToBoardView(filePath: string): void {
+    if (this.suppressAutoView) return;
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof TFile) || !this.isBoardNote(file)) return;
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view || view.file?.path !== filePath) return;
+    if (this.forceMarkdownLeaves.has(view.leaf)) return;
+    void view.leaf.setViewState({
+      type: TASKBOARD_VIEW_TYPE,
+      state: { boardFilePath: filePath },
+      active: true,
+    });
   }
 
   /**
